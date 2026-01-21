@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import traceback
 from pathlib import Path
 
@@ -190,8 +191,17 @@ def main():
         traceback.print_exc()
 
     # Пауза перед выходом (только в EXE режиме)
-    if getattr(sys, 'frozen', False):
-        input("\nНажмите Enter для выхода...")
+    if getattr(sys, 'frozen', False) and sys.platform == 'win32':
+        # Для Windows EXE - показываем MessageBox вместо input()
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0,
+                                             "Приложение завершилось с ошибкой.\n\n" + str(e),
+                                             "Ошибка",
+                                             0)
+        except:
+            pass  # Просто выходим без паузы
+        time.sleep(2)  # Небольшая задержка перед выходом
 
     return 1
 
