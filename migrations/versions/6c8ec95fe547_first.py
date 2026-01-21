@@ -53,6 +53,7 @@ def upgrade() -> None:
     sa.Column('date_start', sa.DateTime(), nullable=False),
     sa.Column('date_end', sa.DateTime(), nullable=True),
     sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('description', sa.String(length=1000), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('active', sa.Boolean(), nullable=False),
@@ -75,7 +76,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('license_number')
     )
     op.create_table('route_tariff',
-    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('route_id', sa.Uuid(), nullable=False),
     sa.Column('tariff_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),

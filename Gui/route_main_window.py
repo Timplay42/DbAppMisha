@@ -334,8 +334,9 @@ class MainWindow(QMainWindow):
 
             # Описание (обрезаем если длинное) (сдвигаем на 1 колонку влево)
             description = tariff.get("description", "")
-            if len(description) > 50:
-                description = description[:47] + "..."
+            if description is not None:
+                if len(description) > 50:
+                    description = description[:47] + "..."
             desc_item = QTableWidgetItem(description)
             self.tariff_table.setItem(row, 6, desc_item)
 
@@ -402,11 +403,11 @@ class MainWindow(QMainWindow):
             return
 
         row = self.tariff_table.currentRow()
-        tariff_id = int(self.tariff_table.item(row, 0).text())
+        tariff_id = self.tariff_table.item(row, 0).text()
 
         # Получаем данные тарифа
         tariffs = get_all_tariffs(self.session)
-        tariff = next((t for t in tariffs if t["id"] == tariff_id), None)
+        tariff = next((t for t in tariffs if str(t["id"]) == tariff_id), None)
 
         if not tariff:
             QMessageBox.warning(self, "Ошибка", "Тариф не найден")
@@ -652,11 +653,11 @@ class MainWindow(QMainWindow):
             return
 
         row = self.shipment_table.currentRow()
-        shipment_id = int(self.shipment_table.item(row, 0).text())
+        shipment_id = self.shipment_table.item(row, 0).text()
 
         # Получаем данные перевозки
         shipments = get_all_shipments(self.session)
-        shipment = next((s for s in shipments if s["id"] == shipment_id), None)
+        shipment = next((s for s in shipments if str(s["id"]) == shipment_id), None)
 
         if not shipment:
             QMessageBox.warning(self, "Ошибка", "Перевозка не найдена")
