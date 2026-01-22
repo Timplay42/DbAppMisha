@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate, Qt
 import datetime
 from Shared.excel_export import ExcelExporter
+from typing import List, Dict, Any
+from sqlalchemy import text
 
 
 class DriverDialog(QDialog):
@@ -70,6 +72,8 @@ class DriverDialog(QDialog):
         self.export_all_btn = QPushButton("👥 Экспорт всех водителей")
         self.export_all_btn.clicked.connect(self.export_all_drivers)
 
+        self.export_join = QPushButton("Все водители с машинами, у которых грузоподьемность больше 10 тонн")
+        self.export_join.clicked.connect(self.export_drivers_with_heavy_cars)
         # Кнопка 2: Водители со стажем > 10 лет
         self.export_experienced_btn = QPushButton("⭐ Водители со стажем > 10 лет")
         self.export_experienced_btn.clicked.connect(self.export_experienced_drivers)
@@ -81,6 +85,7 @@ class DriverDialog(QDialog):
         export_layout.addWidget(self.export_all_btn)
         export_layout.addWidget(self.export_experienced_btn)
         export_layout.addWidget(self.export_without_car_btn)
+        export_layout.addWidget(self.export_join)
         self.export_group.setLayout(export_layout)
 
         # Кнопки сохранения/отмены
@@ -132,6 +137,134 @@ class DriverDialog(QDialog):
         if self.main_window and hasattr(self.main_window, 'session'):
             return self.main_window.session
         return None
+
+    from sqlalchemy import text
+
+    # Замените этот метод:
+    def get_drivers_with_heavy_cars(self) -> List[Dict[str, Any]]:
+        """
+        Получает всех водителей с машинами грузоподъемностью более 10 тонн
+        """
+        query = text("""
+        SELECT 
+            d.full_name,
+            d.license_number,
+            d.license_category,
+            d.experience_years,
+            d.hire_date,
+            c.brand,
+            c.license_plate,
+            c.load_capacity,
+            c.body_type,
+            c.fuel_consumption
+        FROM driver d
+        INNER JOIN car c ON d.car_id = c.id
+        WHERE c.load_capacity > 10
+        ORDER BY c.load_capacity DESC
+        """)
+
+        try:
+            # Выполняем запрос
+            session = self.get_session()
+            result = session.execute(query)
+
+            # Преобразуем результат в список словарей
+            drivers_data = []
+            for row in result:
+                drivers_data.append({
+                    "full_name": row.full_name,
+                    "license_number": row.license_number,
+                    "license_category": row.license_category,
+                    "experience_years": row.experience_years,
+                    "hire_date": row.hire_date.strftime("%Y-%m-%d") if row.hire_date else "",
+                    "car_brand": row.brand,
+                    "license_plate": row.license_plate,
+                    "load_capacity": row.load_capacity,
+                    "body_type": row.body_type,
+                    "fuel_consumption": row.fuel_consumption
+                })
+
+            return drivers_data
+
+        except Exception as e:
+            print(f"Ошибка при выполнении запроса: {e}")
+            return []
+
+    # На этот:
+    def export_drivers_with_heavy_cars(self):
+        """Экспорт водителей с машинами грузоподъемностью более 10 тонн в Excel"""
+        try:
+            session = self.get_session()
+            if not session:
+                QMessageBox.warning(self, "Ошибка", "Не удалось получить доступ к базе данных")
+                return
+
+            # SQL запрос
+            query = text("""
+            SELECT 
+                d.full_name,
+                d.license_number,
+                d.license_category,
+                d.experience_years,
+                d.hire_date,
+                c.brand,
+                c.license_plate,
+                c.load_capacity,
+                c.body_type,
+                c.fuel_consumption
+            FROM driver d
+            INNER JOIN car c ON d.car_id = c.id
+            WHERE c.load_capacity > 10
+            ORDER BY c.load_capacity DESC
+            """)
+
+            # Выполняем запрос
+            result = session.execute(query)
+
+            # Подготавливаем данные для экспорта
+            export_data = []
+            for row in result:
+                # Форматируем дату
+                hire_date = ""
+                if row.hire_date:
+                    if hasattr(row.hire_date, 'strftime'):
+                        hire_date = row.hire_date.strftime("%d.%m.%Y")
+                    else:
+                        hire_date = str(row.hire_date)
+
+                export_data.append({
+                    "ФИО": row.full_name,
+                    "Номер прав": row.license_number,
+                    "Категория прав": row.license_category,
+                    "Стаж (лет)": row.experience_years,
+                    "Дата приема": hire_date,
+                    "Марка автомобиля": row.brand,
+                    "Госномер": row.license_plate,
+                    "Грузоподъемность (т)": f"{float(row.load_capacity):.1f}",
+                    "Тип кузова": row.body_type,
+                    "Расход топлива (л/100км)": f"{float(row.fuel_consumption):.1f}"
+                })
+
+            if not export_data:
+                QMessageBox.information(self, "Информация",
+                                        "Не найдено водителей с машинами грузоподъемностью более 10 тонн")
+                return
+
+            # Экспорт в Excel
+            filepath = ExcelExporter.export_to_excel(
+                export_data,
+                "Водители_с_тяжелыми_машинами",
+                "Водители с машинами >10т"
+            )
+
+            if filepath:
+                ExcelExporter.show_success_message(filepath, self)
+            else:
+                QMessageBox.warning(self, "Ошибка", "Не удалось создать Excel файл")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка при экспорте: {str(e)}")
+            print(f"Детали ошибки: {e}")
 
     def export_all_drivers(self):
         """Экспорт всех водителей в Excel"""
